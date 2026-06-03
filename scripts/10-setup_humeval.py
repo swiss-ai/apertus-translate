@@ -10,12 +10,6 @@ with open("../data/all_v2.jsonl", "r") as f:
 # with open("../data/all_v2_apertus.jsonl", "r") as f:
     data = [json.loads(line) for line in f]
 
-for line in data:
-    if "refA" in line["tgt"]:
-        line["tgt"]["human"] = line["tgt"].pop("refA")
-    if "ref" in line["tgt"]:
-        line["tgt"]["ref"] = line["tgt"].pop("ref")
-
 MODELS_THAT_WE_WANT = ["human"]
 
 for languages in {x["languages"] for x in data}:

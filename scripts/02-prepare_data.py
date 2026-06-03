@@ -17,6 +17,20 @@ data = [
     for line in v
 ]
 
+for line in data:
+    line.pop("i")
+    line.pop("ref")
+    line.pop("scores")
+    line.pop("cost")
+    if "ref" in line and line["ref"] is not None and line["ref"] != "None":
+        line["tgt"] = {"human": line.pop("ref")}
+    elif "ref" in line["tgt"]:
+        line["tgt"] = {"human": line["tgt"]["ref"]}
+    elif "refA" in line["tgt"]:
+        line["tgt"] = {"human": line["tgt"]["refA"]}
+    else:
+        line["tgt"] = {}
+
 # download SwissGov data
 if not os.path.exists("../data/swissgov_cleaned_detokenized.json"):
     response = requests.get("https://raw.githubusercontent.com/miwytt/multi-parallel-swissgov/main/swissgov_cleaned_detokenized.json")
@@ -29,21 +43,18 @@ with open("../data/swissgov_cleaned_detokenized.json", "r") as f:
             if lp1 == lp2:
                 continue
 
-            for line in data_swissgov:
-                segments_src = line[f"text_{lp1}"].split("\n")
-                segments_tgt = line[f"text_{lp2}"].split("\n")
-                if len(segments_src) != len(segments_tgt):
-                    print(f"Skipping line {line['page_en']} due to mismatch in number of segments between {lp1} and {lp2}")
-                    continue
-                data += [
-                    {
-                        "src": src,
-                        "tgt": {"human": tgt},
-                        "dataset": f"swissgov/{lp1}-{lp2}",
-                        "doc": line[f"page_en"] + f"_#_{seg_i}",
-                    }
-                    for seg_i, (src, tgt) in enumerate(zip(segments_src, segments_tgt))
-                ]
+            data += [
+                {
+                    "src": src,
+                    "tgt": {},
+                    "dataset": f"swissgov/{lp1}-{lp2}",
+                    "doc": line[f"page_en"] + f"_#_{seg_i}",
+                    "domain": "government",
+                }
+                for line in data_swissgov
+                for seg_i, src in enumerate(line[f"text_{lp1}"].split("\n"))
+                if len(src) > 30
+            ]
 
 # create custom en->Swiss German data by copying the English side of the WMT25 en-cs data
 data_en = [x for x in data if x["dataset"] == "wmt25/en-cs_CZ"]
@@ -54,6 +65,7 @@ for lang2 in ["Zürich Swiss German (Züritüütsch)", "Bernese Swiss German (B�
             "tgt": {},
             "dataset": f"wmt25custom/en-{lang2}",
             "doc": line["doc"],
+            "domain": line["domain"],
         }
         for line in data_en
     ]
@@ -139,7 +151,7 @@ for languages in languages_all:
         key=lambda x: (x["dataset"].startswith("swissgov"), x["dataset"].startswith("wmt25"), x["dataset"].startswith("wmt24pp"), x["dataset"].startswith("wmt24")),
         reverse=True
     )
-    data_pruned += data_local[:100]
+    data_pruned += data_local
 
 print("Finalized to ", len(data_pruned), "segments")
 with open("../data/all_v2.jsonl", "w") as f:
