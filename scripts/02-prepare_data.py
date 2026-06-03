@@ -5,35 +5,45 @@ import json
 import requests
 import os
 import datasets
+from utils import langcode_to_long
 
 data = [
     line | {"dataset": f"{k[0]}/{k[1]}"}
     for k, v in subset2evaluate.utils.load_data_wmt_all(
         require_human=False,
+        include_ref=True,
         name_filter=lambda k: k[0] in {"wmt25", "wmt24", "wmt24pp"}
     ).items()
     for line in v
 ]
 
 # download SwissGov data
-if not os.path.exists("../data/swissgov_cleaned.json"):
-    response = requests.get("https://raw.githubusercontent.com/miwytt/multi-parallel-swissgov/main/swissgov_cleaned.json")
-    with open("../data/swissgov_cleaned.json", "w") as f:
+if not os.path.exists("../data/swissgov_cleaned_detokenized.json"):
+    response = requests.get("https://raw.githubusercontent.com/miwytt/multi-parallel-swissgov/main/swissgov_cleaned_detokenized.json")
+    with open("../data/swissgov_cleaned_detokenized.json", "w") as f:
         f.write(response.text)
-with open("../data/swissgov_cleaned.json", "r") as f:
+with open("../data/swissgov_cleaned_detokenized.json", "r") as f:
     data_swissgov = json.load(f)
-    data += [
-        {
-            "src": line[f"text_{lp1}"],
-            "tgt": {"human": line[f"text_{lp2}"]},
-            "dataset": f"swissgov/{lp1}-{lp2}",
-            "doc": line[f"page_en"],
-        }
-        for line in data_swissgov
-        for lp1 in ["de", "it", "fr"]
-        for lp2 in ["de", "it", "fr"]
-        if lp1 != lp2
-    ]
+    for lp1 in ["de", "it", "fr", "en"]:
+        for lp2 in ["de", "it", "fr", "en"]:
+            if lp1 == lp2:
+                continue
+
+            for line in data_swissgov:
+                segments_src = line[f"text_{lp1}"].split("\n")
+                segments_tgt = line[f"text_{lp2}"].split("\n")
+                if len(segments_src) != len(segments_tgt):
+                    print(f"Skipping line {line['page_en']} due to mismatch in number of segments between {lp1} and {lp2}")
+                    continue
+                data += [
+                    {
+                        "src": src,
+                        "tgt": {"human": tgt},
+                        "dataset": f"swissgov/{lp1}-{lp2}",
+                        "doc": line[f"page_en"] + f"_#_{seg_i}",
+                    }
+                    for seg_i, (src, tgt) in enumerate(zip(segments_src, segments_tgt))
+                ]
 
 # create custom en->Swiss German data by copying the English side of the WMT25 en-cs data
 data_en = [x for x in data if x["dataset"] == "wmt25/en-cs_CZ"]
@@ -58,6 +68,7 @@ for lang2, lang2_en in [('rumgr', 'Rumantsch Grischun'), ('sursilv', 'Sursilvan'
             "tgt": {"human": line["target"]},
             "dataset": f"wmt24pp/de-{lang2_long}",
             "doc": line["document_id"],
+            "domain": line["domain"],
         }
         for line in data_rm
     ]
@@ -65,22 +76,6 @@ for lang2, lang2_en in [('rumgr', 'Rumantsch Grischun'), ('sursilv', 'Sursilvan'
 with open("../data/wmt25_blind.jsonl", "r") as f:
     data_prompt = [json.loads(x) for x in f.readlines()]
     data_prompt = {line["doc_id"]: line["prompt_instruction"] for line in data_prompt}
-
-
-def langcode_to_long(lang, script=True):
-    from babel import Locale
-
-    # babel doesn't know swiss german
-    if "Swiss" in lang or "Romansh" in lang:
-        return lang
-
-    try:
-        if script:
-            return Locale.parse(lang, sep="_").get_display_name("en")
-        else:
-            return Locale.parse(lang, sep="_").get_language_name("en")
-    except:
-        return Locale.parse(lang.split("_")[0], sep="_").get_language_name("en")
 
 
 def get_prompt(src, doc, dataset):
@@ -117,7 +112,7 @@ print("Starting with ", len(data), "segments")
 # filter out canary and unsuitable lines
 data = [
     line for line in data
-    if "canary" not in line.get("doc", "") and "canary" not in line["src"] and len(line["src"]) > 50
+    if "canary" not in line["doc"] and "canary" not in line["src"] and len(line["src"]) > 5 and line.get("domain") not in {"video", "social", "speech", "canary", "literary"}
 ]
 
 data = [
@@ -126,19 +121,25 @@ data = [
 ]
 print("Pruned to", len(data), "segments")
 
-language_pairs = {tuple(x["dataset"].split("/")[1].split("-")) for x in data}
-print("\n".join([f"{langcode_to_long(lang1, script=False)} -> {langcode_to_long(lang2, script=True)}" for lang1, lang2 in language_pairs]))
-print(len(language_pairs), "language pairs")
+for line in data:
+    lang1, lang2 = line["dataset"].split("/")[1].split("-")
+    lang1_long, lang2_long = langcode_to_long(lang1, script=False), langcode_to_long(lang2, script=False)
+    line["languages"] = f"{lang1_long} -> {lang2_long}"
+
+languages_all = {x["languages"] for x in data}
+# print("\n".join([f"{langcode_to_long(lang1, script=False)} -> {langcode_to_long(lang2, script=True)}" for lang1, lang2 in language_pairs]))
+print(len(languages_all), "language pairs")
 data_pruned = []
 # priority: swissgov, wmt25, wmt24-rm, wmt24pp, wmt24
-for lang1, lang2 in language_pairs:
-    data_local = [x for x in data if x["dataset"].split("/")[1] == f"{lang1}-{lang2}"]
+for languages in languages_all:
+    data_local = [x for x in data if x["languages"] == languages]
+    print(f"Found {len(data_local)} segments for {languages}")
     # sort by priorities
     data_local.sort(
         key=lambda x: (x["dataset"].startswith("swissgov"), x["dataset"].startswith("wmt25"), x["dataset"].startswith("wmt24pp"), x["dataset"].startswith("wmt24")),
         reverse=True
     )
-    data_pruned += data_local[:200]
+    data_pruned += data_local[:100]
 
 print("Finalized to ", len(data_pruned), "segments")
 with open("../data/all_v2.jsonl", "w") as f:
