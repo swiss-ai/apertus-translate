@@ -9,7 +9,7 @@
 
 #let text_nowrap(x) = {
   box(
-    width: 3cm,
+    width: 5cm,
     clip: true,
     outset: (y: 3pt),
   )[
@@ -26,7 +26,7 @@
     (green, calc.max((x - min) / (max - min), 0) * 500%),
     (red, calc.max((max - x) / (max - min), 0) * 500%),
   )
-  if model.contains("Apertus") {
+  if model.contains("Apertus") or model.contains("apertus") {
     model = sym.square.filled + " " + model
   } else if "Unbabel-Tower70B".contains(model) {
     model = strike(model)

@@ -1,0 +1,41 @@
+on_http_request:
+  # 1. Deterministic IP Drops
+  - expressions:
+      - "('blocklist.firehol_org.abusers_30d' in conn.client_ip.categories) || ('proxy.anonymous.tor' in conn.client_ip.categories)"
+    actions:
+      - type: deny
+        config:
+          status_code: 403
+
+  # 2. Deterministic Bot Drops
+  - expressions:
+      - "req.user_agent.is_bot"
+    actions:
+      - type: deny
+        config:
+          status_code: 403
+
+  # 3. Heuristic Inspection
+  - actions:
+      - type: owasp-crs-request
+        config:
+          on_error: halt
+
+  # 4. Path-Based Regex Drops
+  # Deterministically drops requests for hidden files, CGI paths, and common scanner payloads.
+  - expressions:
+      - "req.url.path.matches('(?i)^/([.]+|cgi-bin|admin|.*[.]nasl|.*[.]php.*|.*[.]jsp.*|.*[.]cgi|.*[.]cfm|.*[.]pl)')"
+    actions:
+      - type: deny
+        config:
+          status_code: 403
+
+  # 5. State Tracking
+  - actions:
+      - type: rate-limit
+        config:
+          name: "ip-throttle"
+          algorithm: "sliding_window"
+          capacity: 200
+          rate: "1m"
+          bucket_key: ["conn.client_ip"]

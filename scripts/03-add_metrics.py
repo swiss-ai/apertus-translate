@@ -18,8 +18,7 @@ for line in data:
         if METRIC not in line["scores"].get(model, {}):
             data_missing_metric.add((line["src"], tgt))
 
-# limit to 20k so we run it sequentially
-data_missing_metric = list(data_missing_metric)[:20_000]
+data_missing_metric = list(data_missing_metric)
 print(len(data_missing_metric), "translations missing metric")
 
 model_path = download_model("Unbabel/wmt22-cometkiwi-da")
