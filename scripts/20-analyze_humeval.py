@@ -9,11 +9,11 @@ data_out = []
 
 with open("humeval/annotations.json", "r") as f:
     for campaign_name, data in json.load(f).items():
-        data_local = [
-            ann
-            for item in data
-            for ann in item["annotation"]
-        ]
+        data_local = {}
+        for item in data:
+            for item, ann in zip(item["item"], item["annotation"]):
+                data_local[item["doc"]] = ann
+        data_local = list(data_local.values())
 
         if not data_local:
             continue
