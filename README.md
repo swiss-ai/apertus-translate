@@ -1,6 +1,8 @@
 # apertus-translate
 
-Evaluating Apertus translation capabilities.
+Evaluating Apertus translation capabilities primarily using human evaluation.
+
+<img width="1000" src="https://github.com/user-attachments/assets/14fc0285-cf04-4d81-9c0a-daa3a9a75a76" />
 
 ## Human evaluation
 
