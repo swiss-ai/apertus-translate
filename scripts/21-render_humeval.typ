@@ -2,7 +2,7 @@
 
 #import "@preview/booktabs:0.0.4": *
 #show: booktabs-default-table-style
-#set page(height: auto, width: auto, margin: 2em)
+#set page(height: auto, width: auto, margin: 0em)
 #set text(font: "TeX Gyre Termes")
 
 #let data = json("../outputs/20-analyze_humeval.json")
@@ -65,5 +65,5 @@ table(
   ).flatten(),
   bottomrule(),
 ),
-caption: [Average human evaluation results for translation.]
+// caption: [Average human evaluation results for translation.]
 )
