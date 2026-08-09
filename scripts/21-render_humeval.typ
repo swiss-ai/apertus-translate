@@ -55,9 +55,9 @@ table(
   ..data.map(d => {
     let (lang1, lang2) = d.langs.split(" -> ")
     if lang2.contains("(") {
-      lang2 = lang2.split("(").at(1).trim(")")
+      lang2 = lang2.split("(").at(1).trim(")").replace(", Thurgau", "")
     }
-    return align(left+bottom, rotate(-70deg, reflow: true, stack(spacing: 0.3em, lang1 + sym.arrow, lang2)))
+    return align(left+bottom, rotate(-90deg, reflow: true, stack(spacing: 0.3em, lang1 + sym.arrow, lang2)))
   }),
   midrule(),
   ..models.map(model => (
