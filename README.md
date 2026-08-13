@@ -55,7 +55,7 @@ Each line is a dictionary with the following key, among others:
 
 The latest data version (`all_v2.jsonl`) contains WMT*, SwissGov, etc.
 
-Run the following to render the PDF metrics overview.
+Run the following to render a PDF metrics overview.
 ```bash
 # add automated metrics
 python3 scripts/03a-add_metrics.py data/all_v2.jsonl
@@ -63,4 +63,15 @@ python3 scripts/03a-add_metrics.py data/all_v2.jsonl
 wget https://github.com/swiss-ai/apertus-translate/releases/download/humeval/all_v2.jsonl
 python3 scripts/05a-render_metrics.py data/all_v2.jsonl
 typst compile scripts/05b-render_metrics.typ outputs/05b-render_metrics.pdf --root .
+```
+
+Additional tables:
+
+```bash
+# ChrF scores
+pip install sacrebleu
+python3 scripts/30-chrf-eval.py data/all_v2.jsonl
+
+# COMETKiwi scores only for SwissGov translation directions
+python3 scripts/31-swissgov-table.py data/all_v2.jsonl
 ```
