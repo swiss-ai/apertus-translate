@@ -3,14 +3,20 @@
 #import "@preview/booktabs:0.0.4": *
 #show: booktabs-default-table-style
 #set page(height: auto, width: auto, margin: 0em)
-#set text(font: "TeX Gyre Termes")
+#set text(font: ("TeX Gyre Pagella", "Palatino"))
 
 #let data = json("../outputs/20-analyze_humeval.json")
-#let models = data.at(0).model_avg.keys()
-
-// sort models by average score across all languages
-#let models = models.sorted(
-  key: a => -data.map(d => d.model_avg.at(a)).sum() / data.len(),
+#let model_names = (
+  "Apertus1-8B": "Apertus 1.0 8B",
+  "Apertus1.5-8B": "Apertus 1.5 8B",
+  "EuroLLM-22B": "EuroLLM 22B",
+  "Mistral3-8B": "Ministral 3 8B",
+)
+#let models = (
+  "Apertus1-8B",
+  "Apertus1.5-8B",
+  "EuroLLM-22B",
+  "Mistral3-8B",
 )
 
 // sort data by average score across all models
@@ -44,8 +50,6 @@
   return table.cell(inset: 3pt, fill: color, s + "0" * (1 - tail.len()))
 }
 
-#set align(top)
-
 #figure(
 table(
   columns: data.len()+1,
@@ -57,11 +61,20 @@ table(
     if lang2.contains("(") {
       lang2 = lang2.split("(").at(1).trim(")")
     }
-    return align(left+bottom, rotate(-70deg, reflow: true, stack(spacing: 0.3em, lang1 + sym.arrow, lang2)))
+    lang2 = lang2.replace(", Thurgau", "")
+    table.cell(
+      align: bottom + center,
+      stack(
+        dir: ltr,
+        spacing: 0.3em,
+        rotate(-90deg, reflow: true, lang1 + [→]),
+        rotate(-90deg, reflow: true, lang2),
+      ),
+    )
   }),
   midrule(),
   ..models.map(model => (
-    model, ..data.map(d => format_cell(model, d.model_avg.at(model))))
+    model_names.at(model), ..data.map(d => format_cell(model, d.model_avg.at(model))))
   ).flatten(),
   bottomrule(),
 ),
